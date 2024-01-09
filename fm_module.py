@@ -23,8 +23,7 @@ def get_signal_strength(address):
         #time.sleep(0.5)
 
         # Extract the relevant bits for signal strength
-        signal_strength = (status_data[2] >> 4) & 0x0F
-
+        signal_strength = (status_data[3] & 0XF0) >> 4
         return signal_strength
     except IOError:
         subprocess.call(['i2cdetect', '-y', '1'])
@@ -35,10 +34,9 @@ def search_stations(address, start_freq, end_freq, step=0.1):
         freq = freq / 10.0  # Convert back to float
         set_freq(address, freq)
         strength = get_signal_strength(address)
-        if strength > 3:
+        if strength > 6:
             set_freq(address, freq)
             break
-    time.sleep(0.5)
     return freq
 
 def init_radio(address):
@@ -62,12 +60,10 @@ def set_freq(address, freq):
       i2c.write_i2c_block_data (address, init, data) # Setting a new frequency to the circuit
       print("Frequency set to: " + str(freq))
       # Wait for the module to settle before proceeding
-      time.sleep(0.3)
+      time.sleep(0.1)
       # Get and display signal strength
       signal_strength =str(get_signal_strength(i2c_address))
-      time.sleep(0.7)
       lcd_display.display_text(str(freq), signal_strength)
-      time.sleep(0.7)
       i2c.write_i2c_block_data (address, init, data)
     except IOError:
       subprocess.call(['i2cdetect', '-y', '1'])
@@ -91,26 +87,26 @@ def mute(address):
         subprocess.call(['i2cdetect', '-y', '1'])
 
 def control_frequency(address, controller, db, freq):
-    global muted
+    global muted, curr_fav
     x,y,sw = controller.read_values()
-    i=0
     change = False
     print(freq)
-
+    if(freq>107.9):
+        freq=87.5
     if(x<0.1 and y>0.94 and len(db.get_favorite_frequencies())>0):
-        if(i==0):
-            i=len(db.get_favorite_frequencies())-1
+        if(curr_fav==0):
+            curr_fav=len(db.get_favorite_frequencies())-1
         else:
-            i-=1
-        freq = db.get_favorite_frequencies()[i][0]
+            curr_fav-=1
+        freq = db.get_favorite_frequencies()[curr_fav][0]
         change = True
         time.sleep(2)
     elif(x>0.94 and y>0.95 and len(db.get_favorite_frequencies())>0):
-        if(i==len(db.get_favorite_frequencies())-1):
-            i=0
+        if(curr_fav==len(db.get_favorite_frequencies())-1):
+            curr_fav=0
         else:
-            i+=1
-        freq = db.get_favorite_frequencies()[i][0]
+            curr_fav+=1
+        freq = db.get_favorite_frequencies()[curr_fav][0]
         change = True
         time.sleep(2)
     elif(x<0.1):
@@ -149,11 +145,12 @@ def control_frequency(address, controller, db, freq):
 
 if __name__ == '__main__':
     init_radio(i2c_address)
-    frequency = 100.7 # sample starting frequency
-
+    frequency = 100.9 # sample starting frequency
+    curr_fav = 0
     lcd_display = LCDDisplay()
     db_controler = FMRadioFavorites()
     joystick = Joystick()
+    set_freq(i2c_address,frequency)
     try:
         while True:
             frequency = control_frequency(i2c_address, joystick, db_controler, frequency)
