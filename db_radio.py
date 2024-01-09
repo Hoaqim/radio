@@ -39,9 +39,9 @@ class FMRadioFavorites:
     def delete_frequency_from_database(self, frequency):
         conn = sqlite3.connect(self.DATABASE_FILE)
         cursor = conn.cursor()
+        print("Deleted"+str(frequency))
 
-        cursor.execute("DELETE FROM favorites WHERE frequency = ?", (frequency,))
-
+        cursor.execute("DELETE FROM favorites WHERE frequency LIKE ?", (frequency,))
         conn.commit()
         conn.close()
 
@@ -53,5 +53,5 @@ class FMRadioFavorites:
         frequencies = cursor.fetchall()
 
         conn.close()
-
+        print(type(frequencies))
         return frequencies
